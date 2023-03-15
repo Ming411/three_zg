@@ -27,7 +27,6 @@ const DemoBox = styled.div`
 `;
 
 let canvas, scene, camera, controls, renderer, gltfScene, selectGltfScene;
-let curveObjectArr = []; // 用于后续清除管道线
 const gltfLoader = new GLTFLoader();
 const cubeTextureLoader = new THREE.CubeTextureLoader();
 let textureLoader = new THREE.TextureLoader();
@@ -54,16 +53,20 @@ const to3dMapPoint3 = (longitude, dimension) => {
   // 0.4 为y轴高度
 };
 function EarthDemo() {
+  console.log('组件更新了~');
   const canvasRefs = useRef(null);
-  const [roadData, setRoadData] = useState(null);
+  const [roadData, setRoadData] = useState([]);
   const [lineTexture, setLineTexture] = useState(null);
-  // const [curveObjectArr, setCurveObjectArr] = useState([]); // 用于后续清除管道线
+  const [orangeLz, setOrangeLz] = useState(null);
+  const [blueLz, setBlueLz] = useState(null);
+  const [curveObjectArr, setCurveObjectArr] = useState([]);
+  // let curveObjectArr = []; // 用于后续清除管道线
   useEffect(() => {
     fileLoader.load('./static/road.json', data => {
       setRoadData(JSON.parse(data).features);
     });
     // 路线贴图
-    let tileLine = textureLoader.load('/static/resource/img/route.png', texture => {
+    const tileLine = textureLoader.load('/static/resource/img/route.png', texture => {
       texture.wrapS = THREE.RepeatWrapping;
       texture.wrapT = THREE.RepeatWrapping;
       texture.repeat.set(1, 1); //贴图x,y平铺数量
@@ -93,10 +96,18 @@ function EarthDemo() {
     scene.add(AxesHelper);
     /* 导入模型 */
     gltfLoader.load('./static/model/scene.glb', function (gltf) {
+      // console.log(gltf);
       gltfScene = gltf.scene;
+      gltfScene.visible = true;
       scene.add(gltf.scene);
+      gltfScene.getObjectByName('圆柱').traverse(child => {
+        if (child.isMesh) {
+          // child.material.emissiveIntensity = 50;
+        }
+      });
     });
     gltfLoader.load('./static/selectModel/scene.glb', function (gltf) {
+      // console.log(gltf);
       selectGltfScene = gltf.scene;
       selectGltfScene.visible = false;
       scene.add(selectGltfScene);
@@ -111,7 +122,7 @@ function EarthDemo() {
     controls.dampingFactor = 0.1; //鼠标滚动一个单位时拉伸幅度
     controls.rotateSpeed = 0.1; //旋转速度
     // // controls.enabled = false;//禁用控制器
-    controls.minDistance = 1.5; //离中心物体的最近距离
+    controls.minDistance = 1; //离中心物体的最近距离
     controls.maxDistance = 7; //离中心物体的最远距离
     controls.update(); //控制器实时更新
     controls.target.set(0, 0, 0);
@@ -132,37 +143,7 @@ function EarthDemo() {
     // 只兼容到最大缩放2
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 
-    /* 特效 */
-    /* var renderPass = new RenderPass(scene, camera); //保存渲染结果，但不会输出到屏幕
-    var effectCopy = new ShaderPass(CopyShader); //传入了CopyShader着色器，用于拷贝渲染结果
-    effectCopy.renderToScreen = true; //设置输出到屏幕上
-    var bloomPass = new BloomPass(3, 25, 5.0, 256); //BloomPass通道效果
-    var effectFilm = new FilmPass(0.8, 0.325, 256, false); //FilmPass通道效果
-    effectFilm.renderToScreen = true; //设置输出到屏幕上
-    var dotScreenPass = new DotScreenPass(); // DotScrrenPass通道效果
-    //渲染目标
-    var composer = new EffectComposer(renderer);
-    composer.addPass(renderPass);
-    composer.addPass(effectCopy);
-    var renderScene = new TexturePass(composer.renderTarget2);
-    //左下角
-    var composer1 = new EffectComposer(renderer);
-    composer1.addPass(renderScene);
-    composer1.addPass(dotScreenPass);
-    composer1.addPass(effectCopy);
-    //右下角
-    var composer2 = new EffectComposer(renderer);
-    composer2.addPass(renderScene);
-    composer2.addPass(effectCopy);
-    //左上角
-    var composer3 = new EffectComposer(renderer);
-    composer3.addPass(renderScene);
-    composer3.addPass(bloomPass);
-    composer3.addPass(effectCopy);
-    //右上角
-    var composer4 = new EffectComposer(renderer);
-    composer4.addPass(renderScene);
-    composer4.addPass(effectFilm); */
+    /* 特效 ====*/
 
     window.addEventListener('resize', () => {
       camera.aspect = window.innerWidth / window.innerHeight;
@@ -170,20 +151,35 @@ function EarthDemo() {
       renderer.setSize(window.innerWidth, window.innerHeight);
       renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     });
+  }, []);
+  useEffect(() => {
+    const speed = 0.0005;
+    let direction = 1; // 1上-1下
+    // const clock = new THREE.Clock();
     function animate() {
-      // composer.render();
-      // composer1.render();
-      // composer2.render();
-      // composer3.render();
-      // composer4.render();
+      // const elapsedTime = clock.getElapsedTime();
       controls.update();
-      tileLine.offset.x += 0.01;
+      if (lineTexture) {
+        lineTexture.offset.x += 0.01;
+      }
+      if (orangeLz && blueLz) {
+        orangeLz.position.y += speed * direction;
+        blueLz.position.y += speed * direction;
+        if (orangeLz.position.y > 0.5) {
+          direction = -1;
+        } else if (orangeLz.position.y < 0.4) {
+          direction = 1;
+        }
+      }
       TWEEN.update();
       renderer.render(scene, camera);
       requestAnimationFrame(animate);
     }
     animate();
-  }, []);
+    return () => {
+      cancelAnimationFrame(animate);
+    };
+  }, [lineTexture, orangeLz, blueLz]);
 
   /* 格式化路线数据，创建管道 */
   const racingLine = arr => {
@@ -203,7 +199,7 @@ function EarthDemo() {
     scene.add(curveObject);
     curveObject.visible = true;
     curveObjectArr.push(curveObject);
-    // setCurveObjectArr([...curveObjectArr, curveObject]);
+    setCurveObjectArr([...curveObjectArr]);
   };
   /* 点击事件 */
   const getMousePosition = event => {
@@ -233,15 +229,17 @@ function EarthDemo() {
         gltfScene.userData = {clickable: false};
         selectGltfScene.visible = true;
         selectGltfScene.traverse(child => {
-          if (child.isMesh) {
+          if (child.isMesh && child.name !== '中国地图底') {
             child.visible = false;
-            if (child.name.startsWith(`${selectName}`)) {
-              // console.log(selectName, child);
-              child.visible = true;
-            }
           }
         });
+        // 获取当前选中的板块
         let currentIns = scene.getObjectByName(`${selectName}002`);
+        currentIns.traverse(child => {
+          if (child.isMesh) {
+            child.visible = true;
+          }
+        });
         //相机位置
         moveTo(
           camera.position,
@@ -265,8 +263,34 @@ function EarthDemo() {
         let retPoints = retRoad.map(item => {
           return item.geometry.coordinates[0].map(items => to3dMapPoint3(...items));
         }); // [[[],[]...],[[],[]...]]
-        // console.log(retPoints);
+
+        let orangelzz = scene.getObjectByName(`棱锥橙`);
+        setOrangeLz(orangelzz);
+        let orangePoint = scene.getObjectByName(`橙色-正`);
+        orangePoint.visible = true;
+        let bluelzz = scene.getObjectByName(`棱锥蓝`);
+        setBlueLz(bluelzz);
+        let bluePoint = scene.getObjectByName(`蓝色-正`);
+        bluePoint.visible = true;
+        orangelzz.traverse(child => {
+          if (child.isMesh) {
+            child.visible = true;
+          }
+        });
+        bluelzz.traverse(child => {
+          if (child.isMesh) {
+            child.visible = true;
+          }
+        });
         retPoints.forEach(item => {
+          orangelzz.position.set(item[0][0], item[0][1], item[0][2]);
+          orangePoint.position.copy(orangelzz.position);
+          bluelzz.position.set(
+            item[item.length - 1][0],
+            item[item.length - 1][1],
+            item[item.length - 1][2]
+          );
+          bluePoint.position.copy(bluelzz.position);
           racingLine(item);
         });
       }
@@ -286,8 +310,8 @@ function EarthDemo() {
         item.geometry.dispose();
         item.material.dispose();
       });
-      // setCurveObjectArr([]);
-      curveObjectArr = [];
+      // curveObjectArr = [];
+      setCurveObjectArr([]);
     }
     moveTo(
       camera.position,
