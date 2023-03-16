@@ -29,7 +29,8 @@ const DemoBox = styled.div`
 let canvas, scene, camera, controls, renderer, gltfScene, selectGltfScene;
 const gltfLoader = new GLTFLoader();
 const cubeTextureLoader = new THREE.CubeTextureLoader();
-const textureLoader = new THREE.TextureLoader();
+let textureLoader = new THREE.TextureLoader();
+// 创建一个 FileLoader
 const fileLoader = new THREE.FileLoader();
 const provienceArr = ['广西', '贵州', '重庆', '湖北', '江西', '安徽', '浙江', '河北'];
 // 镜头移动
@@ -49,14 +50,26 @@ const to3dMapPoint3 = (longitude, dimension) => {
   let x1 =
     longitude * -9.603095107696147e-9 + dimension * -0.000001930008759831441 + 6.7177753280436185;
   return [x0, 0.4, x1 - 0.04];
+  // 0.4 为y轴高度
 };
-let roadData, lineTexture, orangeLz, blueLz, orangePoint, bluePoint;
-let curveObjectArr = [];
+let roadData = null,
+  lineTexture = null;
+
 function EarthDemo() {
   console.log('组件更新了~');
   const canvasRefs = useRef(null);
+
+  // const [roadData, setRoadData] = useState([]);
+  // const [lineTexture, setLineTexture] = useState(null);
+  const [orangeLz, setOrangeLz] = useState(null);
+  const [blueLz, setBlueLz] = useState(null);
+  const [orangePoint, setOrangePoint] = useState(null);
+  const [bluePoint, setBluePoint] = useState(null);
+  const [curveObjectArr, setCurveObjectArr] = useState([]);
+  // let curveObjectArr = []; // 用于后续清除管道线
   useEffect(() => {
     fileLoader.load('./static/road.json', data => {
+      // setRoadData(JSON.parse(data).features);
       roadData = JSON.parse(data).features;
     });
     // 路线贴图
@@ -93,6 +106,10 @@ function EarthDemo() {
       gltfScene = gltf.scene;
       gltfScene.visible = true;
       scene.add(gltf.scene);
+      // gltfScene.getObjectByName('圆柱').traverse(child => {
+      //   child.position.y = 1;
+      // });
+      // gltfScene.getObjectByName('圆柱').position.y = 1;
     });
     gltfLoader.load('./static/selectModel/scene.glb', function (gltf) {
       // console.log(gltf, 'nei');
@@ -143,8 +160,8 @@ function EarthDemo() {
   useEffect(() => {
     let flag;
     const speed = 0.0005;
-    let direction = 1; // 棱锥上下 1上-1下
-    let barDirection = -1; // 圆柱上下
+    let direction = 1; // 1上-1下
+    let barDirection = -1;
     // const clock = new THREE.Clock();
     function animate() {
       // const elapsedTime = clock.getElapsedTime();
@@ -153,6 +170,7 @@ function EarthDemo() {
         lineTexture.offset.x += 0.01;
       }
       if (orangeLz && blueLz) {
+        // console.log('~~~~~~~~~~');
         orangeLz.position.y += speed * direction;
         blueLz.position.y += speed * direction;
         if (orangeLz.position.y > 0.5) {
@@ -176,6 +194,13 @@ function EarthDemo() {
             }
           }
         });
+        // let barIns = gltfScene.getObjectByName('圆柱');
+        // barIns.position.y += speed * barDirection;
+        // if (barIns.position.y > 0.4) {
+        //   barDirection = -1;
+        // } else if (barIns.position.y < 0.3) {
+        //   barDirection = 1;
+        // }
       }
       TWEEN.update();
       renderer.render(scene, camera);
@@ -185,7 +210,7 @@ function EarthDemo() {
     return () => {
       cancelAnimationFrame(flag);
     };
-  }, []);
+  }, [orangeLz, blueLz, orangePoint, bluePoint]);
 
   /* 格式化路线数据，创建管道 */
   const racingLine = arr => {
@@ -205,11 +230,11 @@ function EarthDemo() {
     scene.add(curveObject);
     curveObject.visible = true;
     curveObjectArr.push(curveObject);
+    setCurveObjectArr([...curveObjectArr]);
   };
   /* 点击事件 */
   const getMousePosition = event => {
-    // let containerDiv = canvas.getBoundingClientRect();
-    let containerDiv = renderer.domElement.getBoundingClientRect();
+    let containerDiv = canvas.getBoundingClientRect();
     let mouse = new THREE.Vector2();
     mouse.x = ((event.clientX - containerDiv.left) / window.innerWidth) * 2 - 1;
     mouse.y = -((event.clientY - containerDiv.top) / window.innerHeight) * 2 + 1;
@@ -220,7 +245,6 @@ function EarthDemo() {
     let rayCaster = new THREE.Raycaster();
     rayCaster.setFromCamera(mouse, camera);
     if (gltfScene.userData && gltfScene.userData.clickable === false) {
-      // 因为隐藏仍可以点击，防止在第二层点击到第一层
       return;
     }
     let intersects = rayCaster.intersectObjects(gltfScene.children, true);
@@ -229,6 +253,7 @@ function EarthDemo() {
         return provienceArr.includes(item.object.name.substring(0, 2));
       });
       if (ret !== undefined) {
+        // 选中
         let selectName = ret.object.name.substring(0, 2);
         gltfScene.visible = false;
         // 取消点击事件
@@ -256,59 +281,51 @@ function EarthDemo() {
           },
           TWEEN.Easing.Quadratic.Out
         );
-        /* // 获取物体的边界框
+        // 获取物体的边界框
         const boundingBox = new THREE.Box3().setFromObject(currentIns);
         // 计算物体中心点
         const center = new THREE.Vector3();
         const centerPosition = boundingBox.getCenter(center);
         camera.lookAt(centerPosition.x, centerPosition.y, centerPosition.z);
         //控制器中心点
-        moveTo(controls.target, centerPosition, TWEEN.Easing.Quadratic.Out); */
+        moveTo(controls.target, centerPosition, TWEEN.Easing.Quadratic.Out);
         let retRoad = roadData.filter(item => item.properties.city === selectName);
         // console.log(retRoad);
         let retPoints = retRoad.map(item => {
           return item.geometry.coordinates[0].map(items => to3dMapPoint3(...items));
         }); // [[[],[]...],[[],[]...]]
 
-        orangeLz = scene.getObjectByName(`棱锥橙`);
-        orangePoint = scene.getObjectByName(`橙色-正`);
-        orangePoint.visible = true;
-        blueLz = scene.getObjectByName(`棱锥蓝`);
-        bluePoint = scene.getObjectByName(`蓝色-正`);
-        bluePoint.visible = true;
-        orangeLz.traverse(child => {
+        let orangelzz = scene.getObjectByName(`棱锥橙`);
+        setOrangeLz(orangelzz);
+        let orangePointt = scene.getObjectByName(`橙色-正`);
+        orangePointt.visible = true;
+        setOrangePoint(orangePointt);
+        let bluelzz = scene.getObjectByName(`棱锥蓝`);
+        setBlueLz(bluelzz);
+        let bluePointt = scene.getObjectByName(`蓝色-正`);
+        bluePointt.visible = true;
+        setBluePoint(bluePointt);
+        orangelzz.traverse(child => {
           if (child.isMesh) {
             child.visible = true;
           }
         });
-        blueLz.traverse(child => {
+        bluelzz.traverse(child => {
           if (child.isMesh) {
             child.visible = true;
           }
         });
-        let lineCenter;
         retPoints.forEach(item => {
-          lineCenter = item[Math.round(item.length / 2)];
-          orangeLz.position.set(item[0][0], item[0][1], item[0][2]);
-          orangePoint.position.copy(orangeLz.position);
-          blueLz.position.set(
+          orangelzz.position.set(item[0][0], item[0][1], item[0][2]);
+          orangePointt.position.copy(orangelzz.position);
+          bluelzz.position.set(
             item[item.length - 1][0],
             item[item.length - 1][1],
             item[item.length - 1][2]
           );
-          bluePoint.position.copy(blueLz.position);
+          bluePointt.position.copy(bluelzz.position);
           racingLine(item);
         });
-        //控制器中心点,线中心点
-        moveTo(
-          controls.target,
-          {
-            x: lineCenter[0],
-            y: lineCenter[1],
-            z: lineCenter[2]
-          },
-          TWEEN.Easing.Quadratic.Out
-        );
       }
     }
   };
@@ -326,13 +343,13 @@ function EarthDemo() {
         item.geometry.dispose();
         item.material.dispose();
       });
-      curveObjectArr = [];
-      // setCurveObjectArr([]);
+      // curveObjectArr = [];
+      setCurveObjectArr([]);
 
-      orangeLz = null;
-      blueLz = null;
-      orangePoint = null;
-      bluePoint = null;
+      setOrangeLz(null);
+      setBlueLz(null);
+      setOrangePoint(null);
+      setBluePoint(null);
     }
     moveTo(
       camera.position,
