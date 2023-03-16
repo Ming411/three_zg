@@ -121,8 +121,8 @@ function EarthDemo() {
     controls.maxPolarAngle = 1.5; //上下两极的可视区域的最大角度
     controls.minPolarAngle = 0.5; //上下两极的可视区域最小角度
     controls.enableDamping = true; //允许远近拉伸
-    controls.enableKeys = false; //禁止键盘控制
-    controls.enablePan = false; //禁止平移
+    controls.enableKeys = false; //是否允许键盘控制
+    controls.enablePan = true; //是否允许平移
     controls.dampingFactor = 0.1; //鼠标滚动一个单位时拉伸幅度
     controls.rotateSpeed = 0.1; //旋转速度
     // // controls.enabled = false;//禁用控制器
@@ -174,7 +174,7 @@ function EarthDemo() {
         blueLz.position.y += speed * direction;
         if (orangeLz.position.y > 0.5) {
           direction = -1;
-        } else if (orangeLz.position.y < 0.4) {
+        } else if (orangeLz.position.y < 0.41) {
           direction = 1;
         }
       }
