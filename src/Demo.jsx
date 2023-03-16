@@ -183,14 +183,23 @@ function EarthDemo() {
         bluePoint.rotateOnAxis(new THREE.Vector3(0, 1, 0), speed * 50);
       }
       if (gltfScene && gltfScene.visible === true) {
-        let barIns = gltfScene.getObjectByName('圆柱');
-        // console.log(barIns);
-        barIns.position.y += speed * barDirection;
-        if (barIns.position.y > 0.4) {
-          barDirection = -1;
-        } else if (barIns.position.y < 0.3) {
-          barDirection = 1;
-        }
+        gltfScene.getObjectByName('圆柱').traverse(child => {
+          if (child.isMesh && !child.name.startsWith('光柱')) {
+            child.position.y += speed * barDirection;
+            if (child.position.y > 0) {
+              barDirection = -1;
+            } else if (child.position.y < -0.1) {
+              barDirection = 1;
+            }
+          }
+        });
+        // let barIns = gltfScene.getObjectByName('圆柱');
+        // barIns.position.y += speed * barDirection;
+        // if (barIns.position.y > 0.4) {
+        //   barDirection = -1;
+        // } else if (barIns.position.y < 0.3) {
+        //   barDirection = 1;
+        // }
       }
       TWEEN.update();
       renderer.render(scene, camera);
