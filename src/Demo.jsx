@@ -1,4 +1,4 @@
-import React, {useEffect, useRef, useState} from 'react';
+import React, {useEffect, useRef} from 'react';
 import styled from 'styled-components';
 import {Button} from 'antd';
 import {HomeOutlined} from '@ant-design/icons';
@@ -192,7 +192,11 @@ function EarthDemo() {
       }
       if (gltfScene && gltfScene.visible === true) {
         gltfScene.getObjectByName('圆柱').traverse(child => {
-          if (child.isMesh && !child.name.startsWith('光柱')) {
+          if (
+            child.isMesh &&
+            !child.name.startsWith('光柱') &&
+            !child.name.startsWith('柱子贴图')
+          ) {
             child.position.y += speed * barDirection;
             if (child.position.y > 0) {
               barDirection = -1;
