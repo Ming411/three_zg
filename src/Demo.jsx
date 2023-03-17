@@ -53,6 +53,11 @@ const to3dMapPoint3 = (longitude, dimension) => {
 let roadData, lineTexture, orangeLz, blueLz, orangePoint, bluePoint, infoBox;
 let infoBoxOptions = [];
 let curveObjectArr = [];
+const glowMaterial = new THREE.MeshBasicMaterial({
+  color: new THREE.Color(Math.random(), Math.random(), Math.random()).getHex(),
+  transparent: true,
+  opacity: 0.5
+});
 function EarthDemo() {
   console.log('组件更新了~');
   const canvasRefs = useRef(null);
@@ -111,7 +116,7 @@ function EarthDemo() {
         </div>
           `,
           scale: [0.01, 0.01, 0.01],
-          position: [item.position.x - 0.5, item.position.y + 1.1, item.position.z - 0.4]
+          position: [item.position.x - 0.5, item.position.y + 1.2, item.position.z - 0.4]
         };
       });
       infoBox.add(infoBoxOptions);
@@ -192,11 +197,8 @@ function EarthDemo() {
       }
       if (gltfScene && gltfScene.visible === true) {
         gltfScene.getObjectByName('圆柱').traverse(child => {
-          if (
-            child.isMesh &&
-            !child.name.startsWith('光柱') &&
-            !child.name.startsWith('柱子贴图')
-          ) {
+          if (child.isMesh && child.name.startsWith('点粒子')) {
+            child.material = glowMaterial;
             child.position.y += speed * barDirection;
             if (child.position.y > 0) {
               barDirection = -1;
