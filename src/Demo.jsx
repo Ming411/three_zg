@@ -116,7 +116,7 @@ function EarthDemo() {
         </div>
           `,
           scale: [0.01, 0.01, 0.01],
-          position: [item.position.x - 0.5, item.position.y + 1.2, item.position.z - 0.4]
+          position: [item.position.x - 0.5, item.position.y + 1.2, item.position.z - 0.35]
         };
       });
       infoBox.add(infoBoxOptions);
