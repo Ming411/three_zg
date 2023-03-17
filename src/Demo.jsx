@@ -14,7 +14,7 @@ import {GLTFLoader} from 'three/examples/jsm/loaders/GLTFLoader';
 // import {DotScreenPass} from 'three/examples/jsm/postprocessing/DotScreenPass';
 // import {TexturePass} from 'three/examples/jsm/postprocessing/TexturePass';
 import {TWEEN} from 'three/examples/jsm/libs/tween.module.min.js';
-
+import CreateInfoBox from './utils/createInfoBox';
 const DemoBox = styled.div`
   width: 100%;
   height: 100%;
@@ -50,7 +50,8 @@ const to3dMapPoint3 = (longitude, dimension) => {
     longitude * -9.603095107696147e-9 + dimension * -0.000001930008759831441 + 6.7177753280436185;
   return [x0, 0.4, x1 - 0.04];
 };
-let roadData, lineTexture, orangeLz, blueLz, orangePoint, bluePoint;
+let roadData, lineTexture, orangeLz, blueLz, orangePoint, bluePoint, infoBox;
+let infoBoxOptions = [];
 let curveObjectArr = [];
 function EarthDemo() {
   console.log('组件更新了~');
@@ -93,6 +94,27 @@ function EarthDemo() {
       gltfScene = gltf.scene;
       gltfScene.visible = true;
       scene.add(gltf.scene);
+      gltfScene.traverse(child => {
+        if (child.name === '圆柱') {
+          child.children.forEach(item => {
+            infoBoxOptions.push(item);
+          });
+        }
+      });
+      infoBoxOptions = infoBoxOptions.map(item => {
+        return {
+          name: item.name + 'box',
+          element: `
+        <div class='elementContent' 
+              style="background-image: url('/static/resource/img/${item.name}.png')">
+          <h3>${item.name}</h3>
+        </div>
+          `,
+          scale: [0.01, 0.01, 0.01],
+          position: [item.position.x - 0.5, item.position.y + 1.1, item.position.z - 0.4]
+        };
+      });
+      infoBox.add(infoBoxOptions);
     });
     gltfLoader.load('./static/selectModel/scene.glb', function (gltf) {
       // console.log(gltf, 'nei');
@@ -131,13 +153,16 @@ function EarthDemo() {
     // 只兼容到最大缩放2
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 
-    /* 特效 ====*/
+    /* 3D 盒子 */
+    infoBox = new CreateInfoBox(scene, document.getElementById('root'));
 
     window.addEventListener('resize', () => {
       camera.aspect = window.innerWidth / window.innerHeight;
       camera.updateProjectionMatrix();
       renderer.setSize(window.innerWidth, window.innerHeight);
       renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+      infoBox.cssRenderer.setSize(window.innerWidth, window.innerHeight);
     });
   }, []);
   useEffect(() => {
@@ -180,6 +205,9 @@ function EarthDemo() {
       TWEEN.update();
       renderer.render(scene, camera);
       flag = requestAnimationFrame(animate);
+
+      /* ======更新CSS3D渲染器===== */
+      infoBox && infoBox.cssRenderer.render(scene, camera);
     }
     animate();
     return () => {
@@ -229,6 +257,11 @@ function EarthDemo() {
         return provienceArr.includes(item.object.name.substring(0, 2));
       });
       if (ret !== undefined) {
+        // 隐藏infobox
+        infoBoxOptions.forEach(item => {
+          scene.getObjectByName(item.name).visible = false;
+        });
+
         let selectName = ret.object.name.substring(0, 2);
         gltfScene.visible = false;
         // 取消点击事件
@@ -316,6 +349,10 @@ function EarthDemo() {
   /* home按钮 */
   const homeClick = () => {
     if (gltfScene.visible === true) return;
+    // 重新展示infobox
+    infoBoxOptions.forEach(item => {
+      scene.getObjectByName(item.name).visible = true;
+    });
     gltfScene.visible = true;
     gltfScene.userData = {clickable: true};
     selectGltfScene.visible = false;
