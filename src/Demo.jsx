@@ -197,7 +197,10 @@ function EarthDemo() {
       }
       if (gltfScene && gltfScene.visible === true) {
         gltfScene.getObjectByName('圆柱').traverse(child => {
-          if (child.isMesh && child.name.startsWith('点粒子')) {
+          if (
+            child.isMesh &&
+            (child.name.startsWith('点粒子') || child.name.startsWith('长粒子'))
+          ) {
             child.material = glowMaterial;
             child.position.y += speed * barDirection;
             if (child.position.y > 0) {
